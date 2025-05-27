@@ -1,0 +1,20 @@
+{
+  "name": "Blow Me Away",
+  "short_name": "BlowMeAway",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#a0d8ef",
+  "theme_color": "#0077b6",
+  "icons": [
+    {
+      "src": "icons/fan-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/fan-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
