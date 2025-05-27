@@ -1,6 +1,7 @@
 # Blow Me Away
 
-一个搞怪又好玩的数字风扇网页 PWA，适合炎炎夏日救命凉风。
+一个搞怪又好玩的数字风扇网页 PWA，适合炎炎夏日救命凉风。  
+项目地址：[https://xyy277.github.io/blow-me-away/](https://xyy277.github.io/blow-me-away/)
 
 ## 特性
 
