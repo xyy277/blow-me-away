@@ -19,3 +19,33 @@
 ---
 
 **Blow Me Away**，让你在数字世界也能感受风的吹拂！
+
+---
+
+## 手机添加到主屏幕快速访问
+
+**步骤（iOS & Android 均适用）：**
+
+- iPhone Safari：
+
+ 1. 访问：[https://xyy277.github.io/blow-me-away/](https://xyy277.github.io/blow-me-away/)
+
+ 2. 点击底部中间的分享按钮
+
+ 3. 选择“添加到主屏幕”
+
+- Android Chrome：
+
+ 1. 访问：[https://xyy277.github.io/blow-me-away/](https://xyy277.github.io/blow-me-away/)
+
+ 2. 会自动弹出“添加到主屏幕”的提示
+
+ 3. 如果没有，点击右上角菜单 → 添加到主屏幕
+
+- Huawei 浏览器：
+
+ 1. 访问：[https://xyy277.github.io/blow-me-away/](https://xyy277.github.io/blow-me-away/)
+
+ 2. 点击底部右侧四个点的按钮
+
+ 3. 选择添加至桌面
