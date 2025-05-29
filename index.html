@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>炎热夏季救命空调扇</title>
+    <meta name="description" content="炎热夏季救命空调扇，提供高效的制冷和制热功能，适合各种家庭和商业环境。">
     <link rel="apple-touch-icon" href="icons/fan-192.png">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/fan-192.png">
@@ -117,31 +118,9 @@
             overflow: hidden;
         }
 
-        .speed-btn::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 0;
-            background: var(--primary-color);
-            transition: height 0.2s ease;
-            opacity: 0.7;
-        }
-
         .speed-btn:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
-        }
-
-        .speed-btn.active {
-            background: var(--primary-lighter);
-            color: var(--primary-color);
-            font-weight: 700;
-        }
-
-        .speed-btn.active::after {
-            height: 4px;
         }
 
         .speed-btn:active {
@@ -231,27 +210,98 @@
         /* 风扇旋转动画 */
         @keyframes rotate-slow {
             from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            to { transform: rotate(-360deg); }
         }
 
         @keyframes rotate-medium {
             from { transform: rotate(0deg); }
-            to { transform: rotate(720deg); }
+            to { transform: rotate(-720deg); }
         }
 
         @keyframes rotate-fast {
             from { transform: rotate(0deg); }
-            to { transform: rotate(1080deg); }
+            to { transform: rotate(-1080deg); }
         }
 
         /* 修正旋转中心点 */
         #fan-blades {
             transform-origin: 130px 130px;
         }
+
+        /* 添加主题色选择器样式 */
+        .theme-control {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            padding: 8px;
+            box-shadow: var(--shadow-md);
+            z-index: 10;
+        }
+
+        .theme-control-label {
+            font-size: 0.85rem;
+            color: var(--text-color);
+            margin-bottom: 4px;
+            text-align: center;
+            display: block;
+        }
+
+        .color-picker {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            background: var(--primary-color);
+            transition: var(--transition);
+        }
+
+        .color-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .color-picker::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
+        }
+
+        .color-picker::-moz-color-swatch {
+            border: none;
+            border-radius: 50%;
+        }
+
+        .color-picker:hover {
+            transform: scale(1.1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .color-picker:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary-lighter);
+        }
+
+        @media (max-width: 400px) {
+            .theme-control {
+                top: 12px;
+                right: 12px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="fan-container">
+        <!-- 添加主题色选择器 -->
+        <div class="theme-control">
+            <label for="themeColor" class="theme-control-label">主题色</label>
+            <input type="color" id="themeColor" class="color-picker" value="#5b8fb9" aria-label="选择主题颜色">
+        </div>
+
         <div class="fan-svg-container">
             <svg class="fan-svg" viewBox="0 0 260 300" aria-label="台式小风扇">
                 <defs>
@@ -421,17 +471,125 @@
             // 各档位配置
             const speeds = {
                 0: { animation: null, soundVolume: 0, frequency: 0 },
-                1: { animation: 'rotate-slow 0.5s linear infinite', soundVolume: 0.3, particleCount: 40, particleSpeed: 0.8, frequency: 120 },
-                2: { animation: 'rotate-medium 0.5s linear infinite', soundVolume: 0.6, particleCount: 80, particleSpeed: 1.2, frequency: 140 },
-                3: { animation: 'rotate-fast 0.5s linear infinite', soundVolume: 0.9, particleCount: 160, particleSpeed: 1.8, frequency: 180 },
+                1: { animation: 'rotate-slow 2s linear infinite', soundVolume: 0.3, particleCount: 40, particleSpeed: 0.8, frequency: 120 },
+                2: { animation: 'rotate-medium 1.33s linear infinite', soundVolume: 0.6, particleCount: 80, particleSpeed: 1.2, frequency: 140 },
+                3: { animation: 'rotate-fast 0.67s linear infinite', soundVolume: 0.9, particleCount: 160, particleSpeed: 1.8, frequency: 180 },
             };
 
-            
-            // 设置当前激活状态
+            // 修改粒子创建和更新逻辑
+            let currentParticleCount = 0;
+            let targetParticleCount = 0;
+            let particleTransitionInterval;
+
+            function createParticle() {
+                const centerX = windCanvas.width / 2;
+                const centerY = windCanvas.height / 2;
+                return {
+                    centerX,
+                    centerY,
+                    radius: Math.random() * 5 + 2,
+                    angle: Math.random() * 2 * Math.PI,
+                    radiusSpeed: 0.5 + Math.random() * 0.5,
+                    angleSpeed: -(0.05 + Math.random() * 0.03),
+                    alpha: Math.random() * 0.5 + 0.3,
+                    radiusMax: windCanvas.width / 2 * 1.2,
+                    color: particles.length > 0 ? particles[0].color : 'rgba(91, 143, 185, 0.3)'
+                };
+            }
+
+            function updateParticleCount(targetCount, immediate = false) {
+                clearInterval(particleTransitionInterval);
+                targetParticleCount = targetCount;
+
+                if (immediate) {
+                    while (particles.length > targetCount) {
+                        particles.pop();
+                    }
+                    while (particles.length < targetCount) {
+                        particles.push(createParticle());
+                    }
+                    currentParticleCount = targetCount;
+                    return;
+                }
+
+                particleTransitionInterval = setInterval(() => {
+                    if (particles.length > targetCount) {
+                        // 移除多余的粒子，每次移除一小部分
+                        const removeCount = Math.min(3, particles.length - targetCount);
+                        particles.splice(particles.length - removeCount, removeCount);
+                    } else if (particles.length < targetCount) {
+                        // 添加新粒子，每次添加一小部分
+                        const addCount = Math.min(3, targetCount - particles.length);
+                        for (let i = 0; i < addCount; i++) {
+                            particles.push(createParticle());
+                        }
+                    }
+
+                    if (particles.length === targetCount) {
+                        clearInterval(particleTransitionInterval);
+                    }
+                }, 50); // 每50ms调整一次粒子数量
+            }
+
+            function updateParticleSpeed(speed) {
+                const config = speeds[speed];
+                if (!config) return;
+
+                particles.forEach(p => {
+                    // 保持逆时针旋转（负值）
+                    p.radiusSpeed = (0.5 + Math.random() * 0.5) * config.particleSpeed;
+                    p.angleSpeed = -(0.05 + Math.random() * 0.03) * config.particleSpeed;
+                });
+            }
+
+            function drawParticles(speed) {
+                cancelAnimationFrame(animationFrameId);
+                if (speed === 0) {
+                    ctx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+                    updateParticleCount(0);
+                    return;
+                }
+
+                const config = speeds[speed];
+                if (!config) return;
+
+                // 更新目标粒子数量
+                updateParticleCount(config.particleCount);
+                // 更新粒子速度
+                updateParticleSpeed(speed);
+
+                function animate() {
+                    ctx.clearRect(0, 0, windCanvas.width, windCanvas.height);
+                    particles.forEach(p => {
+                        p.radius += p.radiusSpeed;
+                        p.angle += p.angleSpeed;
+
+                        p.x = p.centerX + p.radius * Math.cos(p.angle);
+                        p.y = p.centerY + p.radius * Math.sin(p.angle);
+
+                        if (p.radius >= p.radiusMax) {
+                            p.alpha -= 0.01;
+                            if (p.alpha <= 0) {
+                                // 重置粒子位置和属性，但保持速度不变
+                                p.radius = 5 + Math.random() * 5;
+                                p.angle = Math.random() * 2 * Math.PI;
+                                p.alpha = Math.random() * 0.5 + 0.3;
+                            }
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color || `rgba(91, 143, 185, ${p.alpha})`;
+                        ctx.fill();
+                    });
+                    animationFrameId = requestAnimationFrame(animate);
+                }
+
+                animate();
+            }
+
+            // 修改设置激活状态的函数
             function setActiveState(speed) {
-
-                drawParticles(parseInt(speed));
-
                 // 更新按钮状态
                 btns.forEach(btn => {
                     const isActive = btn.dataset.speed === speed;
@@ -452,9 +610,12 @@
                     );
                 });
                 
-                // 更新风扇动画和声音
+                // 更新风扇动画
                 updateFanAnimation(speed);
+                // 更新风扇声音
                 updateFanSound(speed);
+                // 更新粒子效果
+                drawParticles(parseInt(speed));
             }
             
             // 更新风扇动画
@@ -581,68 +742,328 @@
                 }
             });
             
-            function createParticles(count) {
-                const centerX = windCanvas.width / 2;
-                const centerY = windCanvas.height / 2;
-                particles = [];
-                for (let i = 0; i < count; i++) {
-                    particles.push({
-                        centerX,
-                        centerY,
-                        radius: Math.random() * 5 + 2,      // 初始半径
-                        angle: Math.random() * 2 * Math.PI, // 初始角度
-                        radiusSpeed: 0.5 + Math.random() * 0.5,  // 扩散速度
-                        angleSpeed: 0.05 + Math.random() * 0.03, // 顺时针旋转速度，保持正值
-                        alpha: Math.random() * 0.5 + 0.3,
-                        radiusMax: windCanvas.width / 2 * 1.2 // 最大扩散半径
-                    });
-                }
+            // 添加主题色控制相关变量
+            const colorPicker = document.getElementById('themeColor');
+            const root = document.documentElement;
+
+            // 颜色处理函数
+            function adjustColor(color, percent) {
+                const num = parseInt(color.replace('#', ''), 16);
+                const r = Math.min(255, Math.max(0, (num >> 16) + percent));
+                const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + percent));
+                const b = Math.min(255, Math.max(0, (num & 0x0000FF) + percent));
+                
+                return '#' + (
+                    (r << 16) + 
+                    (g << 8) + 
+                    b
+                ).toString(16).padStart(6, '0');
             }
-            
-            function drawParticles(speed) {
-                cancelAnimationFrame(animationFrameId);
-                if (speed === 0) {
-                    ctx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-                    return;
+
+            // 辅助函数：计算颜色的亮度
+            function calculateBrightness(color) {
+                const rgb = hexToRgb(color);
+                if (!rgb) return 0;
+                // 使用相对亮度公式 (0.299R + 0.587G + 0.114B)
+                return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+            }
+
+            // 新增：计算协调的背景色
+            function calculateHarmonizedBackground(baseColor) {
+                const rgb = hexToRgb(baseColor);
+                if (!rgb) return;
+
+                // 计算色相、饱和度、亮度
+                const [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                
+                // 创建协调的渐变色
+                const start = hslToRgb(
+                    (h + 180) % 360,  // 补色
+                    Math.max(0, s * 0.3),  // 降低饱和度
+                    Math.min(0.95, l + 0.3)  // 提高亮度
+                );
+                
+                const end = hslToRgb(
+                    (h + 210) % 360,  // 补色偏移
+                    Math.max(0, s * 0.4),
+                    Math.min(0.9, l + 0.2)
+                );
+
+                // 保持蓝色调
+                const blendWithBlue = (rgb, blueWeight = 0.3) => {
+                    return {
+                        r: Math.round(rgb.r * (1 - blueWeight) + 160 * blueWeight),
+                        g: Math.round(rgb.g * (1 - blueWeight) + 216 * blueWeight),
+                        b: Math.round(rgb.b * (1 - blueWeight) + 239 * blueWeight)
+                    };
+                };
+
+                const harmonizedStart = blendWithBlue(start);
+                const harmonizedEnd = blendWithBlue(end, 0.4);
+
+                return {
+                    start: rgbToHex(harmonizedStart),
+                    end: rgbToHex(harmonizedEnd)
+                };
+            }
+
+            // 辅助函数：RGB转HSL
+            function rgbToHsl(r, g, b) {
+                r /= 255;
+                g /= 255;
+                b /= 255;
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+
+                if (max === min) {
+                    h = s = 0;
+                } else {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                        case g: h = (b - r) / d + 2; break;
+                        case b: h = (r - g) / d + 4; break;
+                    }
+                    h *= 60;
                 }
-            
-                const config = speeds[speed];
-                createParticles(config.particleCount);
-            
-                function animate() {
-                    ctx.clearRect(0, 0, windCanvas.width, windCanvas.height);
-                    particles.forEach(p => {
-                        // 顺时针旋转扩散
-                        p.radius += p.radiusSpeed;
-                        p.angle += p.angleSpeed;
-            
-                        // 计算绘制坐标
-                        p.x = p.centerX + p.radius * Math.cos(p.angle);
-                        p.y = p.centerY + p.radius * Math.sin(p.angle);
-            
-                        // 当粒子达到最大半径时开始淡出
-                        if (p.radius >= p.radiusMax) {
-                            p.alpha -= 0.01;  // 加快透明度减少速度，可以根据需求调节
-                            if (p.alpha <= 0) {
-                                // 透明度消失后重置粒子状态
-                                p.radius = 5 + Math.random() * 5;
-                                p.angle = Math.random() * 2 * Math.PI;
-                                p.alpha = Math.random() * 0.5 + 0.3;
+
+                return [h, s, l];
+            }
+
+            // 辅助函数：HSL转RGB
+            function hslToRgb(h, s, l) {
+                let r, g, b;
+
+                function hue2rgb(p, q, t) {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1/6) return p + (q - p) * 6 * t;
+                    if (t < 1/2) return q;
+                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                    return p;
+                }
+
+                if (s === 0) {
+                    r = g = b = l;
+                } else {
+                    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                    const p = 2 * l - q;
+                    r = hue2rgb(p, q, (h + 120) / 360);
+                    g = hue2rgb(p, q, h / 360);
+                    b = hue2rgb(p, q, (h - 120) / 360);
+                }
+
+                return {
+                    r: Math.round(r * 255),
+                    g: Math.round(g * 255),
+                    b: Math.round(b * 255)
+                };
+            }
+
+            // 辅助函数：RGB转Hex
+            function rgbToHex(rgb) {
+                return '#' + ((1 << 24) + (rgb.r << 16) + (rgb.g << 8) + rgb.b)
+                    .toString(16)
+                    .slice(1);
+            }
+
+            // 更新主题色
+            function updateThemeColor(color) {
+                const lighterColor = adjustColor(color, 40);
+                const lighterColor2 = adjustColor(color, 60);
+                
+                // 计算主题色的亮度
+                const brightness = calculateBrightness(color);
+                // 根据亮度选择文字颜色
+                const textColor = brightness > 160 ? '#333333' : '#ffffff';
+                
+                // 更新CSS变量
+                root.style.setProperty('--primary-color', color);
+                root.style.setProperty('--primary-light', lighterColor);
+                root.style.setProperty('--primary-lighter', lighterColor2);
+                root.style.setProperty('--active-text-color', textColor);
+
+                // 更新按钮样式
+                const style = document.createElement('style');
+                style.textContent = `
+                    .speed-btn.active {
+                        background: var(--primary-color);
+                        color: var(--active-text-color);
+                        font-weight: 700;
+                        position: relative;
+                        overflow: hidden;
+                    }
+                    .speed-btn.active::before {
+                        content: '';
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        height: 25%;
+                        background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.15));
+                        transition: opacity 0.3s ease;
+                        opacity: 1;
+                    }
+                    .speed-btn::before {
+                        content: '';
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        height: 25%;
+                        background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.15));
+                        transition: opacity 0.3s ease;
+                        opacity: 0;
+                    }
+                    .speed-btn.active::after {
+                        height: 4px;
+                        opacity: 1;
+                    }
+                    .speed-btn::after {
+                        content: '';
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        height: 0;
+                        background: var(--primary-color);
+                        transition: height 0.2s ease, opacity 0.2s ease;
+                        opacity: 0.7;
+                    }
+                `;
+                // 移除旧的样式（如果存在）
+                const oldStyle = document.getElementById('dynamic-button-style');
+                if (oldStyle) {
+                    oldStyle.remove();
+                }
+                style.id = 'dynamic-button-style';
+                document.head.appendChild(style);
+
+                // 更新文字颜色
+                document.querySelector('.fan-tip').style.color = adjustColor(color, 20);
+                
+                // 更新SVG元素颜色
+                const elements = {
+                    // 风扇外框和外壳
+                    'circle[cx="130"][cy="130"][r="100"]': { 
+                        stroke: color, 
+                        'stroke-opacity': '0.6' 
+                    },
+                    // 风扇面罩线条
+                    'line[stroke="#a5c4d9"]': { 
+                        stroke: lighterColor, 
+                        'stroke-opacity': '0.3' 
+                    },
+                    // 风扇面罩圆圈
+                    'circle[stroke="#a5c4d9"]': { 
+                        stroke: lighterColor, 
+                        'stroke-opacity': '0.4' 
+                    },
+                    // 风扇中心大圆
+                    'circle[cx="130"][cy="130"][r="26"]': { 
+                        fill: `url(#centerGradient)`,
+                        stroke: lighterColor,
+                        'stroke-opacity': '0.6'
+                    },
+                    // 风扇中心小圆
+                    'circle[cx="130"][cy="130"][r="10"]': { 
+                        fill: lighterColor2,
+                        'fill-opacity': '0.9'
+                    }
+                };
+
+                // 更新各个元素的颜色
+                Object.entries(elements).forEach(([selector, attrs]) => {
+                    document.querySelectorAll(selector).forEach(el => {
+                        Object.entries(attrs).forEach(([attr, value]) => {
+                            if (attr === 'stroke' || attr === 'fill') {
+                                el.setAttribute(attr, value);
+                            } else {
+                                el.setAttribute(attr, value);
                             }
-                        }
-            
-                        // 绘制粒子
-                        ctx.beginPath();
-                        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-                        ctx.fillStyle = `rgba(91, 143, 185, ${p.alpha})`;
-                        ctx.fill();
+                        });
                     });
-                    animationFrameId = requestAnimationFrame(animate);
+                });
+
+                // 更新渐变
+                const gradients = {
+                    'bladeLight': {
+                        0: { color: '#fff', opacity: 0.8 },
+                        1: { color: lighterColor, opacity: 0.6 },
+                        2: { color: color, opacity: 0.8 }
+                    },
+                    'centerGradient': {
+                        0: { color: '#fff' },
+                        1: { color: lighterColor },
+                        2: { color: color }
+                    },
+                    'baseLight': {
+                        0: { color: lighterColor, opacity: 0.6 },
+                        1: { color: color }
+                    },
+                    'baseGradient': {
+                        0: { color: lighterColor2 },
+                        1: { color: lighterColor }
+                    }
+                };
+
+                Object.entries(gradients).forEach(([id, stops]) => {
+                    const gradient = document.getElementById(id);
+                    if (gradient) {
+                        const gradientStops = gradient.querySelectorAll('stop');
+                        Object.entries(stops).forEach(([index, attrs]) => {
+                            if (gradientStops[index]) {
+                                gradientStops[index].setAttribute('stop-color', attrs.color);
+                                if (attrs.opacity !== undefined) {
+                                    gradientStops[index].setAttribute('stop-opacity', attrs.opacity);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // 更新背景色
+                const harmonizedBg = calculateHarmonizedBackground(color);
+                if (harmonizedBg) {
+                    document.body.style.background = `linear-gradient(135deg, ${harmonizedBg.start}, ${harmonizedBg.end})`;
                 }
-            
-                animate();
+
+                // 更新粒子颜色
+                if (typeof particles !== 'undefined' && particles.length > 0) {
+                    const rgbColor = hexToRgb(color);
+                    if (rgbColor) {
+                        const particleColor = `rgba(${rgbColor.r}, ${rgbColor.g}, ${rgbColor.b}, 0.3)`;
+                        particles.forEach(p => {
+                            p.color = particleColor;
+                        });
+                    }
+                }
             }
-            
+
+            // 辅助函数：十六进制转RGB
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
+
+            // 监听颜色变化
+            colorPicker.addEventListener('input', (e) => {
+                updateThemeColor(e.target.value);
+            });
+
+            colorPicker.addEventListener('change', (e) => {
+                updateThemeColor(e.target.value);
+                playClickSound();
+            });
+
+            // 初始化主题色
+            updateThemeColor(colorPicker.value);
 
             // 初始状态
             setActiveState(currentSpeed.toString());
