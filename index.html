@@ -292,6 +292,87 @@
                 right: 12px;
             }
         }
+
+        .sound-btn {
+            background: var(--primary-lighter);
+            border: none;
+            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            margin-left: 8px;
+        }
+
+        .sound-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .sound-btn:active {
+            transform: translateY(0);
+        }
+
+        .sound-btn.active {
+            background: var(--primary-color);
+            color: var(--active-text-color);
+        }
+
+        .sound-btn.active::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 25%;
+            background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.15));
+            transition: opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .sound-btn::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 25%;
+            background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.15));
+            transition: opacity 0.3s ease;
+            opacity: 0;
+        }
+
+        .sound-btn.active::after {
+            height: 4px;
+            opacity: 1;
+        }
+
+        .sound-btn::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: var(--primary-color);
+            transition: height 0.2s ease, opacity 0.2s ease;
+            opacity: 0.7;
+        }
+
+        @media (max-width: 400px) {
+            .sound-btn {
+                width: 42px;
+                height: 42px;
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -386,6 +467,9 @@
             <button class="speed-btn" data-speed="3" aria-label="三档风速">
                 <span>3档</span>
             </button>
+            <button class="sound-btn" aria-label="声音控制">
+                <span class="sound-icon">🔇</span>
+            </button>
         </div>
         
         <div class="power-indicator">
@@ -412,6 +496,183 @@
             let gainNode;
             let oscillator;
             let isAudioAllowed = false;
+            let isSoundEnabled = false;
+            let isMuted = false;
+            let previousVolume = 0;
+
+            // 添加声音控制按钮
+            const soundBtn = document.querySelector('.sound-btn');
+            const soundIcon = document.querySelector('.sound-icon');
+
+            // 更新声音按钮状态
+            function updateSoundButtonState() {
+                soundBtn.classList.toggle('active', isSoundEnabled && !isMuted);
+                if (!isSoundEnabled) {
+                    soundIcon.textContent = '🔇';
+                } else if (isMuted) {
+                    soundIcon.textContent = '🔈';
+                } else {
+                    soundIcon.textContent = '🔊';
+                }
+            }
+
+            // 修改setActiveState函数
+            function setActiveState(speed) {
+                // 更新按钮状态
+                btns.forEach(btn => {
+                    const isActive = btn.dataset.speed === speed;
+                    btn.classList.toggle('active', isActive);
+                    
+                    if (isActive) {
+                        btn.style.transform = 'translateY(1px)';
+                        setTimeout(() => {
+                            btn.style.transform = '';
+                        }, 150);
+                    }
+                });
+                
+                // 更新指示灯状态
+                dots.forEach(dot => {
+                    dot.classList.toggle('active', 
+                        speed > 0 && dot.dataset.speed <= speed
+                    );
+                });
+                
+                // 更新风扇动画
+                updateFanAnimation(speed);
+                
+                // 更新声音状态
+                if (speed === '0' || speed === 0) {
+                    // 关闭风扇时确保声音停止
+                    if (gainNode) {
+                        gainNode.gain.value = 0;
+                    }
+                } else {
+                    // 只有在开启声音且未静音时才播放声音
+                    updateFanSound(speed);
+                }
+                
+                // 更新粒子效果
+                drawParticles(parseInt(speed));
+            }
+
+            // 修改updateFanSound函数
+            function updateFanSound(speed) {
+                // 如果声音功能未开启或已静音或速度为0，则确保声音关闭
+                if (!isAudioAllowed || !isSoundEnabled || isMuted || speed === 0 || speed === '0') {
+                    if (gainNode) {
+                        clearInterval(soundFadeInterval);
+                        gainNode.gain.value = 0;
+                    }
+                    return;
+                }
+
+                // 确保音频上下文已初始化
+                if (!isAudioAllowed) {
+                    initAudio();
+                }
+
+                clearInterval(soundFadeInterval);
+                
+                const targetVolume = speeds[speed].soundVolume;
+                const currentVolume = gainNode ? gainNode.gain.value : 0;
+                const volumeStep = 0.05;
+                const intervalTime = 50;
+                
+                // 设置频率
+                if (oscillator && speed > 0) {
+                    oscillator.frequency.setValueAtTime(speeds[speed].frequency, audioContext.currentTime);
+                }
+                
+                // 平滑过渡到目标音量
+                if (currentVolume < targetVolume) {
+                    soundFadeInterval = setInterval(() => {
+                        if (!gainNode || !isSoundEnabled || isMuted) {
+                            clearInterval(soundFadeInterval);
+                            if (gainNode) gainNode.gain.value = 0;
+                            return;
+                        }
+                        
+                        if (gainNode.gain.value >= targetVolume) {
+                            clearInterval(soundFadeInterval);
+                            gainNode.gain.value = targetVolume;
+                        } else {
+                            gainNode.gain.value = Math.min(gainNode.gain.value + volumeStep, targetVolume);
+                        }
+                    }, intervalTime);
+                } else if (currentVolume > targetVolume) {
+                    soundFadeInterval = setInterval(() => {
+                        if (!gainNode || !isSoundEnabled || isMuted) {
+                            clearInterval(soundFadeInterval);
+                            if (gainNode) gainNode.gain.value = 0;
+                            return;
+                        }
+                        
+                        if (gainNode.gain.value <= targetVolume) {
+                            clearInterval(soundFadeInterval);
+                            gainNode.gain.value = targetVolume;
+                        } else {
+                            gainNode.gain.value = Math.max(gainNode.gain.value - volumeStep, targetVolume);
+                        }
+                    }, intervalTime);
+                }
+            }
+
+            // 修改initAudio函数
+            function initAudio() {
+                try {
+                    if (audioContext) {
+                        // 如果已经存在，先清理旧的音频上下文
+                        if (oscillator) {
+                            oscillator.stop();
+                            oscillator.disconnect();
+                        }
+                        if (gainNode) {
+                            gainNode.disconnect();
+                        }
+                        audioContext.close();
+                    }
+                    
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    gainNode = audioContext.createGain();
+                    gainNode.gain.value = 0;
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator = audioContext.createOscillator();
+                    oscillator.type = 'sine';
+                    oscillator.frequency.value = 0;
+                    oscillator.connect(gainNode);
+                    oscillator.start();
+                    
+                    isAudioAllowed = true;
+                } catch (e) {
+                    console.log('音频初始化失败:', e);
+                    isAudioAllowed = false;
+                }
+            }
+
+            // 修改声音按钮点击事件
+            soundBtn.addEventListener('click', () => {
+                if (!isSoundEnabled) {
+                    // 开启声音功能
+                    isSoundEnabled = true;
+                    isMuted = false;
+                    if (!isAudioAllowed) {
+                        initAudio();
+                    }
+                } else {
+                    // 切换静音状态
+                    isMuted = !isMuted;
+                }
+                
+                // 更新声音状态
+                if (currentSpeed > 0) {
+                    updateFanSound(currentSpeed);
+                }
+                
+                updateSoundButtonState();
+                playClickSound();
+            });
 
             // 添加 canvas 用于风的粒子效果
             const fanContainer = document.querySelector('.fan-svg-container');
@@ -435,27 +696,6 @@
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
             
-            // 初始化音频
-            function initAudio() {
-                try {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    gainNode = audioContext.createGain();
-                    gainNode.gain.value = 0;
-                    gainNode.connect(audioContext.destination);
-                    
-                    oscillator = audioContext.createOscillator();
-                    oscillator.type = 'highpass';
-                    oscillator.frequency.value = 100;
-                    oscillator.connect(gainNode);
-                    oscillator.start();
-                    
-                    isAudioAllowed = true;
-                } catch (e) {
-                    console.log('音频初始化失败:', e);
-                    isAudioAllowed = false;
-                }
-            }
-            
             // 用户交互后初始化音频
             function handleFirstInteraction() {
                 if (!isAudioAllowed) {
@@ -471,9 +711,9 @@
             // 各档位配置
             const speeds = {
                 0: { animation: null, soundVolume: 0, frequency: 0 },
-                1: { animation: 'rotate-slow 0.8s linear infinite', soundVolume: 0.3, particleCount: 40, particleSpeed: 0.8, frequency: 120 },
-                2: { animation: 'rotate-medium 0.6s linear infinite', soundVolume: 0.6, particleCount: 80, particleSpeed: 1.2, frequency: 140 },
-                3: { animation: 'rotate-fast 0.5s linear infinite', soundVolume: 0.9, particleCount: 160, particleSpeed: 1.8, frequency: 180 },
+                1: { animation: 'rotate-slow 0.6s linear infinite', soundVolume: 0.3, particleCount: 40, particleSpeed: 0.8, frequency: 50 },
+                2: { animation: 'rotate-medium 0.5s linear infinite', soundVolume: 0.6, particleCount: 80, particleSpeed: 1.2, frequency: 70 },
+                3: { animation: 'rotate-fast 0.5s linear infinite', soundVolume: 0.9, particleCount: 160, particleSpeed: 1.8, frequency: 100 },
             };
 
             // 修改粒子创建和更新逻辑
@@ -588,36 +828,6 @@
                 animate();
             }
 
-            // 修改设置激活状态的函数
-            function setActiveState(speed) {
-                // 更新按钮状态
-                btns.forEach(btn => {
-                    const isActive = btn.dataset.speed === speed;
-                    btn.classList.toggle('active', isActive);
-                    
-                    if (isActive) {
-                        btn.style.transform = 'translateY(1px)';
-                        setTimeout(() => {
-                            btn.style.transform = '';
-                        }, 150);
-                    }
-                });
-                
-                // 更新指示灯状态
-                dots.forEach(dot => {
-                    dot.classList.toggle('active', 
-                        speed > 0 && dot.dataset.speed <= speed
-                    );
-                });
-                
-                // 更新风扇动画
-                updateFanAnimation(speed);
-                // 更新风扇声音
-                updateFanSound(speed);
-                // 更新粒子效果
-                drawParticles(parseInt(speed));
-            }
-            
             // 更新风扇动画
             function updateFanAnimation(speed) {
                 if (!blades) {
@@ -650,44 +860,6 @@
                 }
             }
             
-            // 更新风扇声音
-            function updateFanSound(speed) {
-                if (!isAudioAllowed) return;
-                
-                clearInterval(soundFadeInterval);
-                
-                const targetVolume = speeds[speed].soundVolume;
-                const currentVolume = gainNode.gain.value;
-                const volumeStep = 0.05;
-                const intervalTime = 50;
-                
-                // 设置频率
-                if (speed > 0) {
-                    oscillator.frequency.setValueAtTime(speeds[speed].frequency, audioContext.currentTime);
-                }
-                
-                // 淡入淡出效果
-                if (currentVolume < targetVolume) {
-                    soundFadeInterval = setInterval(() => {
-                        if (gainNode.gain.value >= targetVolume) {
-                            clearInterval(soundFadeInterval);
-                            gainNode.gain.value = targetVolume;
-                        } else {
-                            gainNode.gain.value = Math.min(gainNode.gain.value + volumeStep, targetVolume);
-                        }
-                    }, intervalTime);
-                } else if (currentVolume > targetVolume) {
-                    soundFadeInterval = setInterval(() => {
-                        if (gainNode.gain.value <= targetVolume) {
-                            clearInterval(soundFadeInterval);
-                            gainNode.gain.value = targetVolume;
-                        } else {
-                            gainNode.gain.value = Math.max(gainNode.gain.value - volumeStep, targetVolume);
-                        }
-                    }, intervalTime);
-                }
-            }
-            
             // 按钮点击事件
             btns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -706,9 +878,9 @@
                 });
             });
             
-            // 模拟点击声音
+            // 修改playClickSound函数
             function playClickSound() {
-                if (!isAudioAllowed) return;
+                if (!isAudioAllowed || isMuted) return;
                 
                 const clickOscillator = audioContext.createOscillator();
                 const clickGain = audioContext.createGain();
@@ -1040,6 +1212,25 @@
                         });
                     }
                 }
+
+                // 更新声音按钮样式
+                const soundBtnStyle = document.createElement('style');
+                soundBtnStyle.textContent = `
+                    .sound-btn.active {
+                        background: ${color};
+                        color: ${textColor};
+                    }
+                    .sound-btn::after {
+                        background: ${color};
+                    }
+                `;
+                // 移除旧的声音按钮样式（如果存在）
+                const oldSoundBtnStyle = document.getElementById('dynamic-sound-button-style');
+                if (oldSoundBtnStyle) {
+                    oldSoundBtnStyle.remove();
+                }
+                soundBtnStyle.id = 'dynamic-sound-button-style';
+                document.head.appendChild(soundBtnStyle);
             }
 
             // 辅助函数：十六进制转RGB
